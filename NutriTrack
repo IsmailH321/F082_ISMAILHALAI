@@ -1,0 +1,416 @@
+import tkinter as tk
+from tkinter import ttk
+import sqlite3
+
+class Windows:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("NutriTrack")
+        self.master.geometry("1000x650")
+        
+        self.page_num = 1
+        self.food_combobox_values = []
+
+    def create_database(self):
+        try:
+            conn = sqlite3.connect('food_database.db')
+            c = conn.cursor()
+
+            c.execute('''CREATE TABLE IF NOT EXISTS foods
+                         (id INTEGER PRIMARY KEY,
+                          name TEXT,
+                          energy REAL,
+                          protein REAL,
+                          carbs REAL,
+                          fats REAL)''')
+
+            # Insert meals
+            c.execute("INSERT INTO foods (name, energy, protein, carbs, fats) VALUES ('Apple', 52, 0.3, 14, 0.2)")
+            c.execute("INSERT INTO foods (name, energy, protein, carbs, fats) VALUES ('Banana', 89, 1.1, 23, 0.3)")
+            c.execute("INSERT INTO foods (name, energy, protein, carbs, fats) VALUES ('Chicken Breast', 165, 31, 0, 3.6)")
+            c.execute("INSERT INTO foods (name, energy, protein, carbs, fats) VALUES ('Salmon', 208, 20, 0, 13)")
+
+            conn.commit()
+            conn.close()
+        except sqlite3.Error as e:
+            print("SQLite error:", e)
+
+    def populate_combobox(self):
+        try:
+            conn = sqlite3.connect('food_database.db')
+            c = conn.cursor()
+            c.execute("SELECT name FROM foods")
+            foods = [row[0] for row in c.fetchall()]
+            self.food_combobox_values = foods
+            conn.close()
+        except sqlite3.Error as e:
+            print("SQLite error:", e)
+
+    def open_next_window(self):
+        try:
+            if self.page_num == 1:
+                self.page_num += 1
+                self.populate_combobox()
+
+                self.window1 = tk.Toplevel(self.master)
+                self.window1.title("NutriTrack")
+                self.window1.geometry("800x450")
+
+                # user info on sec window
+                details_frame = tk.Frame(self.window1)
+                details_frame.pack(pady=10)
+                
+                ttk.Label(details_frame, text="Name:").grid(row=0, column=0, sticky="w")
+                ttk.Label(details_frame, text=name_entry.get()).grid(row=0, column=1, sticky="w")
+                
+                ttk.Label(details_frame, text="Age:").grid(row=1, column=0, sticky="w")
+                ttk.Label(details_frame, text=age_entry.get()).grid(row=1, column=1, sticky="w")
+                
+                ttk.Label(details_frame, text="Height:").grid(row=2, column=0, sticky="w")
+                ttk.Label(details_frame, text=height_entry.get()).grid(row=2, column=1, sticky="w")
+                
+                ttk.Label(details_frame, text="Weight:").grid(row=3, column=0, sticky="w")
+                ttk.Label(details_frame, text=weight_entry.get()).grid(row=3, column=1, sticky="w")
+                
+                ttk.Label(details_frame, text="Gender:").grid(row=4, column=0, sticky="w")
+                ttk.Label(details_frame, text=gender_combobox.get()).grid(row=4, column=1, sticky="w")
+                
+                # meal name
+                meal_frame = tk.Frame(self.window1)
+                meal_frame.pack(pady=10)
+                
+                ttk.Label(meal_frame, text="Meal Name:").grid(row=0, column=0, sticky="w")
+                self.meal_entry = ttk.Entry(meal_frame)
+                self.meal_entry.grid(row=0, column=1, padx=5)
+                
+                self.next_button1 = tk.Button(self.window1, text="Next", command=self.open_next_window)
+                self.next_button1.pack(pady=20)
+                
+            elif self.page_num == 2:
+                self.page_num += 1
+                self.window2 = tk.Toplevel(self.master)
+                self.window2.title("NutriTrack")
+                self.window2.geometry("600x300")
+
+                # selection of food
+                food_frame = tk.Frame(self.window2)
+                food_frame.pack(pady=10)
+
+                ttk.Label(food_frame, text="Select Food:").grid(row=0, column=0, sticky="w")
+                self.food_combobox = ttk.Combobox(food_frame, values=self.food_combobox_values, state="readonly")
+                self.food_combobox.grid(row=0, column=1)
+
+                # selection of qty
+                quantity_frame = tk.Frame(self.window2)
+                quantity_frame.pack(pady=10)
+
+                ttk.Label(quantity_frame, text="Enter Quantity:").grid(row=0, column=0, sticky="w")
+                self.quantity_entry = ttk.Entry(quantity_frame)
+                self.quantity_entry.grid(row=0, column=1)
+
+                # calculating button
+                calculate_button = ttk.Button(self.window2, text="Calculate", command=self.calculate_nutrients)
+                calculate_button.pack(pady=20)
+
+                # displaying final description
+                result_text = tk.Text(self.window2, wrap="word", height=4, width=30)
+                result_text.pack(pady=10)
+                self.result_text = result_text
+                self.result_text.config(state="disabled", font=("Arial", 12), padx=5, pady=5, relief="solid")
+
+            else:
+                pass
+        except Exception as e:
+            print("An error occurred:", e)
+
+    def calculate_nutrients(self):
+        try:
+            selected_food = self.food_combobox.get()
+            quantity = float(self.quantity_entry.get())
+
+            conn = sqlite3.connect('food_database.db')
+            c = conn.cursor()
+
+            c.execute("SELECT * FROM foods WHERE name=?", (selected_food,))
+            food_data = c.fetchone()
+
+            energy = food_data[2] * quantity
+            protein = food_data[3] * quantity
+            carbs = food_data[4] * quantity
+            fats = food_data[5] * quantity
+
+            self.result_text.config(state="normal")
+            self.result_text.delete('1.0', tk.END)
+            self.result_text.insert(tk.END, f"Energy: {energy} kcal\nProtein: {protein} g\nCarbs: {carbs} g\nFats: {fats} g")
+            self.result_text.config(state="disabled")
+
+            conn.close()
+        except Exception as e:
+            print("An error occurred:", e)
+
+def submit():
+    try:
+        name = name_entry.get()
+        age = age_entry.get()
+        height = height_entry.get()
+        weight = weight_entry.get()
+        gender = gender_var.get()
+        
+        print("Name:", name)
+        print("Age:", age)
+        print("Height:", height)
+        print("Weight:", weight)
+        print("Gender:", gender)
+        
+        app.open_next_window()
+    except Exception as e:
+        print("An error occurred:", e)
+
+root = tk.Tk()
+app = Windows(root)
+app.create_database()
+
+name_label = ttk.Label(root, text="Name:")
+name_label.pack()
+
+name_entry = ttk.Entry(root)
+name_entry.pack()
+
+age_label = ttk.Label(root, text="Age:")
+age_label.pack()
+
+age_entry = ttk.Entry(root)
+age_entry.pack()
+
+height_label = ttk.Label(root, text="Height:")
+height_label.pack()
+
+height_entry = ttk.Entry(root)
+height_entry.pack()
+
+weight_label = ttk.Label(root, text="Weight:")
+weight_label.pack()
+
+weight_entry = ttk.Entry(root)
+weight_entry.pack()
+
+gender_label = ttk.Label(root, text="Gender:")
+gender_label.pack()
+
+gender_var = tk.StringVar()
+gender_combobox = ttk.Combobox(root, textvariable=gender_var, values=["Male", "Female"])
+gender_combobox.pack()
+gender_combobox.current(0)
+
+submit_button = ttk.Button(root, text="Submit", command=submit)
+submit_button.pack()
+
+root.mainloop()
+Final projectimport tkinter as tk
+from tkinter import ttk
+import sqlite3
+
+class Windows:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("NutriTrack")
+        self.master.geometry("1000x650")
+        
+        self.page_num = 1
+        self.food_combobox_values = []
+
+    def create_database(self):
+        try:
+            conn = sqlite3.connect('food_database.db')
+            c = conn.cursor()
+
+            c.execute('''CREATE TABLE IF NOT EXISTS foods
+                         (id INTEGER PRIMARY KEY,
+                          name TEXT,
+                          energy REAL,
+                          protein REAL,
+                          carbs REAL,
+                          fats REAL)''')
+
+            # Insert meals
+            c.execute("INSERT INTO foods (name, energy, protein, carbs, fats) VALUES ('Apple', 52, 0.3, 14, 0.2)")
+            c.execute("INSERT INTO foods (name, energy, protein, carbs, fats) VALUES ('Banana', 89, 1.1, 23, 0.3)")
+            c.execute("INSERT INTO foods (name, energy, protein, carbs, fats) VALUES ('Chicken Breast', 165, 31, 0, 3.6)")
+            c.execute("INSERT INTO foods (name, energy, protein, carbs, fats) VALUES ('Salmon', 208, 20, 0, 13)")
+
+            conn.commit()
+            conn.close()
+        except sqlite3.Error as e:
+            print("SQLite error:", e)
+
+    def populate_combobox(self):
+        try:
+            conn = sqlite3.connect('food_database.db')
+            c = conn.cursor()
+            c.execute("SELECT name FROM foods")
+            foods = [row[0] for row in c.fetchall()]
+            self.food_combobox_values = foods
+            conn.close()
+        except sqlite3.Error as e:
+            print("SQLite error:", e)
+
+    def open_next_window(self):
+        try:
+            if self.page_num == 1:
+                self.page_num += 1
+                self.populate_combobox()
+
+                self.window1 = tk.Toplevel(self.master)
+                self.window1.title("NutriTrack")
+                self.window1.geometry("800x450")
+
+                # user info on sec window
+                details_frame = tk.Frame(self.window1)
+                details_frame.pack(pady=10)
+                
+                ttk.Label(details_frame, text="Name:").grid(row=0, column=0, sticky="w")
+                ttk.Label(details_frame, text=name_entry.get()).grid(row=0, column=1, sticky="w")
+                
+                ttk.Label(details_frame, text="Age:").grid(row=1, column=0, sticky="w")
+                ttk.Label(details_frame, text=age_entry.get()).grid(row=1, column=1, sticky="w")
+                
+                ttk.Label(details_frame, text="Height:").grid(row=2, column=0, sticky="w")
+                ttk.Label(details_frame, text=height_entry.get()).grid(row=2, column=1, sticky="w")
+                
+                ttk.Label(details_frame, text="Weight:").grid(row=3, column=0, sticky="w")
+                ttk.Label(details_frame, text=weight_entry.get()).grid(row=3, column=1, sticky="w")
+                
+                ttk.Label(details_frame, text="Gender:").grid(row=4, column=0, sticky="w")
+                ttk.Label(details_frame, text=gender_combobox.get()).grid(row=4, column=1, sticky="w")
+                
+                # meal name
+                meal_frame = tk.Frame(self.window1)
+                meal_frame.pack(pady=10)
+                
+                ttk.Label(meal_frame, text="Meal Name:").grid(row=0, column=0, sticky="w")
+                self.meal_entry = ttk.Entry(meal_frame)
+                self.meal_entry.grid(row=0, column=1, padx=5)
+                
+                self.next_button1 = tk.Button(self.window1, text="Next", command=self.open_next_window)
+                self.next_button1.pack(pady=20)
+                
+            elif self.page_num == 2:
+                self.page_num += 1
+                self.window2 = tk.Toplevel(self.master)
+                self.window2.title("NutriTrack")
+                self.window2.geometry("600x300")
+
+                # selection of food
+                food_frame = tk.Frame(self.window2)
+                food_frame.pack(pady=10)
+
+                ttk.Label(food_frame, text="Select Food:").grid(row=0, column=0, sticky="w")
+                self.food_combobox = ttk.Combobox(food_frame, values=self.food_combobox_values, state="readonly")
+                self.food_combobox.grid(row=0, column=1)
+
+                # selection of qty
+                quantity_frame = tk.Frame(self.window2)
+                quantity_frame.pack(pady=10)
+
+                ttk.Label(quantity_frame, text="Enter Quantity:").grid(row=0, column=0, sticky="w")
+                self.quantity_entry = ttk.Entry(quantity_frame)
+                self.quantity_entry.grid(row=0, column=1)
+
+                # calculating button
+                calculate_button = ttk.Button(self.window2, text="Calculate", command=self.calculate_nutrients)
+                calculate_button.pack(pady=20)
+
+                # displaying final description
+                result_text = tk.Text(self.window2, wrap="word", height=4, width=30)
+                result_text.pack(pady=10)
+                self.result_text = result_text
+                self.result_text.config(state="disabled", font=("Arial", 12), padx=5, pady=5, relief="solid")
+
+            else:
+                pass
+        except Exception as e:
+            print("An error occurred:", e)
+
+    def calculate_nutrients(self):
+        try:
+            selected_food = self.food_combobox.get()
+            quantity = float(self.quantity_entry.get())
+
+            conn = sqlite3.connect('food_database.db')
+            c = conn.cursor()
+
+            c.execute("SELECT * FROM foods WHERE name=?", (selected_food,))
+            food_data = c.fetchone()
+
+            energy = food_data[2] * quantity
+            protein = food_data[3] * quantity
+            carbs = food_data[4] * quantity
+            fats = food_data[5] * quantity
+
+            self.result_text.config(state="normal")
+            self.result_text.delete('1.0', tk.END)
+            self.result_text.insert(tk.END, f"Energy: {energy} kcal\nProtein: {protein} g\nCarbs: {carbs} g\nFats: {fats} g")
+            self.result_text.config(state="disabled")
+
+            conn.close()
+        except Exception as e:
+            print("An error occurred:", e)
+
+def submit():
+    try:
+        name = name_entry.get()
+        age = age_entry.get()
+        height = height_entry.get()
+        weight = weight_entry.get()
+        gender = gender_var.get()
+        
+        print("Name:", name)
+        print("Age:", age)
+        print("Height:", height)
+        print("Weight:", weight)
+        print("Gender:", gender)
+        
+        app.open_next_window()
+    except Exception as e:
+        print("An error occurred:", e)
+
+root = tk.Tk()
+app = Windows(root)
+app.create_database()
+
+name_label = ttk.Label(root, text="Name:")
+name_label.pack()
+
+name_entry = ttk.Entry(root)
+name_entry.pack()
+
+age_label = ttk.Label(root, text="Age:")
+age_label.pack()
+
+age_entry = ttk.Entry(root)
+age_entry.pack()
+
+height_label = ttk.Label(root, text="Height:")
+height_label.pack()
+
+height_entry = ttk.Entry(root)
+height_entry.pack()
+
+weight_label = ttk.Label(root, text="Weight:")
+weight_label.pack()
+
+weight_entry = ttk.Entry(root)
+weight_entry.pack()
+
+gender_label = ttk.Label(root, text="Gender:")
+gender_label.pack()
+
+gender_var = tk.StringVar()
+gender_combobox = ttk.Combobox(root, textvariable=gender_var, values=["Male", "Female"])
+gender_combobox.pack()
+gender_combobox.current(0)
+
+submit_button = ttk.Button(root, text="Submit", command=submit)
+submit_button.pack()
+
+root.mainloop()
